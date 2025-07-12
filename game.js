@@ -384,6 +384,111 @@ class TetrisGame {
         }, 1500);
     }
 
+    // 計算幽靈方塊的位置（方塊落下後的最終位置）
+    getGhostPiecePosition() {
+        if (!this.currentPiece) return null;
+
+        // 創建一個副本，避免修改原始方塊
+        const ghostPiece = {
+            ...this.currentPiece,
+            y: this.currentPiece.y
+        };
+
+        // 持續下移直到碰撞
+        while (true) {
+            const nextGhostPiece = {
+                ...ghostPiece,
+                y: ghostPiece.y + 1
+            };
+            
+            if (this.isCollision(nextGhostPiece)) {
+                break;
+            }
+            
+            ghostPiece.y++;
+        }
+
+        return ghostPiece;
+    }
+
+    // 繪製幽靈方塊（半透明預覽）
+    drawGhostPiece() {
+        const ghostPiece = this.getGhostPiecePosition();
+        if (!ghostPiece || ghostPiece.y === this.currentPiece.y) {
+            return; // 如果幽靈方塊和當前方塊位置相同，就不繪製
+        }
+
+        // 繪製幽靈方塊
+        for (let y = 0; y < ghostPiece.shape.length; y++) {
+            for (let x = 0; x < ghostPiece.shape[y].length; x++) {
+                if (ghostPiece.shape[y][x]) {
+                    this.drawGhostBlock(
+                        ghostPiece.x + x,
+                        ghostPiece.y + y,
+                        GAME_CONFIG.COLORS[ghostPiece.type]
+                    );
+                }
+            }
+        }
+    }
+
+    // 繪製幽靈方塊的單個方塊（增強顯眼度）
+    drawGhostBlock(x, y, color) {
+        const pixelX = x * GAME_CONFIG.BLOCK_SIZE;
+        const pixelY = y * GAME_CONFIG.BLOCK_SIZE;
+
+        // 保存當前狀態
+        const oldAlpha = this.ctx.globalAlpha;
+
+        // 1. 繪製半透明填充背景
+        this.ctx.globalAlpha = 0.15;
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(pixelX + 2, pixelY + 2, 
+                         GAME_CONFIG.BLOCK_SIZE - 4, 
+                         GAME_CONFIG.BLOCK_SIZE - 4);
+
+        // 2. 繪製較粗的外邊框
+        this.ctx.globalAlpha = 0.8;
+        this.ctx.strokeStyle = this.lightenColor(color, 30);
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeRect(pixelX + 1, pixelY + 1, 
+                           GAME_CONFIG.BLOCK_SIZE - 2, 
+                           GAME_CONFIG.BLOCK_SIZE - 2);
+
+        // 3. 繪製內部邊框
+        this.ctx.globalAlpha = 0.6;
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(pixelX + 3, pixelY + 3, 
+                           GAME_CONFIG.BLOCK_SIZE - 6, 
+                           GAME_CONFIG.BLOCK_SIZE - 6);
+
+        // 4. 繪製對角線
+        this.ctx.globalAlpha = 0.4;
+        this.ctx.strokeStyle = this.lightenColor(color, 50);
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        // 左上到右下的對角線
+        this.ctx.moveTo(pixelX + 4, pixelY + 4);
+        this.ctx.lineTo(pixelX + GAME_CONFIG.BLOCK_SIZE - 4, pixelY + GAME_CONFIG.BLOCK_SIZE - 4);
+        // 右上到左下的對角線
+        this.ctx.moveTo(pixelX + GAME_CONFIG.BLOCK_SIZE - 4, pixelY + 4);
+        this.ctx.lineTo(pixelX + 4, pixelY + GAME_CONFIG.BLOCK_SIZE - 4);
+        this.ctx.stroke();
+
+        // 5. 添加閃爍效果的中心點
+        this.ctx.globalAlpha = 0.7;
+        this.ctx.fillStyle = '#ffffff';
+        const centerX = pixelX + GAME_CONFIG.BLOCK_SIZE / 2;
+        const centerY = pixelY + GAME_CONFIG.BLOCK_SIZE / 2;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, 2, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // 恢復透明度
+        this.ctx.globalAlpha = oldAlpha;
+    }
+
     draw() {
         // 清空畫布
         this.ctx.fillStyle = '#000';
@@ -391,6 +496,11 @@ class TetrisGame {
 
         // 繪製遊戲板
         this.drawBoard();
+
+        // 繪製幽靈方塊（在當前方塊之前繪製）
+        if (this.currentPiece && this.gameRunning) {
+            this.drawGhostPiece();
+        }
 
         // 繪製當前方塊
         if (this.currentPiece) {
