@@ -1,0 +1,8 @@
+# 忽略配置檔案
+config.js
+
+# 其他常見忽略檔案
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
